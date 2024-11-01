@@ -198,36 +198,62 @@ export abstract class NonfungiblePositionManager {
 
   public static addCallParameters(position: Position, options: AddLiquidityOptions): MethodParameters {
     invariant(JSBI.greaterThan(position.liquidity, ZERO), 'ZERO_LIQUIDITY')
-
+  
     const calldatas: string[] = []
-
-    // get amounts
+  
+    // 获取金额
     const { amount0: amount0Desired, amount1: amount1Desired } = position.mintAmounts
-
-    // adjust for slippage
+  
+    // 调整滑点
     const minimumAmounts = position.mintAmountsWithSlippage(options.slippageTolerance)
     const amount0Min = toHex(minimumAmounts.amount0)
     const amount1Min = toHex(minimumAmounts.amount1)
-
     const deadline = toHex(options.deadline)
-
-    // create pool if needed
+  
+    // 输出position和options的相关信息
+    console.log("Position Information:", position)
+    console.log("AddLiquidityOptions:", options)
+    console.log("Amount0 Desired:", amount0Desired.toString())
+    console.log("Amount1 Desired:", amount1Desired.toString())
+    console.log("Amount0 Min (after slippage):", amount0Min)
+    console.log("Amount1 Min (after slippage):", amount1Min)
+    console.log("Deadline:", deadline)
+  
+    // 如果需要创建池
     if (isMint(options) && options.createPool) {
+      console.log("Creating Pool with Pool Info:", position.pool)
       calldatas.push(this.encodeCreate(position.pool))
     }
-
-    // permits if necessary
+  
+    // 如果需要permit
     if (options.token0Permit) {
+      console.log("Adding Permit for Token0:", position.pool.token0)
       calldatas.push(SelfPermit.encodePermit(position.pool.token0, options.token0Permit))
     }
     if (options.token1Permit) {
+      console.log("Adding Permit for Token1:", position.pool.token1)
       calldatas.push(SelfPermit.encodePermit(position.pool.token1, options.token1Permit))
     }
-
+  
     // mint
     if (isMint(options)) {
       const recipient: string = validateAndParseAddress(options.recipient)
-
+  
+      // 打印 mint 参数信息
+      console.log("Mint Parameters:", {
+        token0: position.pool.token0.address,
+        token1: position.pool.token1.address,
+        fee: position.pool.fee,
+        tickLower: position.tickLower,
+        tickUpper: position.tickUpper,
+        amount0Desired: toHex(amount0Desired),
+        amount1Desired: toHex(amount1Desired),
+        amount0Min,
+        amount1Min,
+        recipient,
+        deadline
+      })
+  
       calldatas.push(
         NonfungiblePositionManager.INTERFACE.encodeFunctionData('mint', [
           {
@@ -246,7 +272,16 @@ export abstract class NonfungiblePositionManager {
         ])
       )
     } else {
-      // increase
+      // 增加流动性
+      console.log("Increase Liquidity Parameters:", {
+        tokenId: toHex(options.tokenId),
+        amount0Desired: toHex(amount0Desired),
+        amount1Desired: toHex(amount1Desired),
+        amount0Min,
+        amount1Min,
+        deadline
+      })
+  
       calldatas.push(
         NonfungiblePositionManager.INTERFACE.encodeFunctionData('increaseLiquidity', [
           {
@@ -260,29 +295,35 @@ export abstract class NonfungiblePositionManager {
         ])
       )
     }
-
+  
     let value: string = toHex(0)
-
+  
+    // 使用原生代币
     if (options.useNative) {
       const wrapped = options.useNative.wrapped
       invariant(position.pool.token0.equals(wrapped) || position.pool.token1.equals(wrapped), 'NO_WETH')
-
+  
       const wrappedValue = position.pool.token0.equals(wrapped) ? amount0Desired : amount1Desired
-
-      // we only need to refund if we're actually sending ETH
+  
+      console.log("Use Native Token. Wrapped Value:", wrappedValue.toString())
+  
+      // 只有在真正发送 ETH 时才需要退款
       if (JSBI.greaterThan(wrappedValue, ZERO)) {
         calldatas.push(Payments.encodeRefundETH())
       }
-
+  
       value = toHex(wrappedValue)
     }
-
+  
+    console.log("Final Calldata:", Multicall.encodeMulticall(calldatas))
+    console.log("Value to send:", value)
+  
     return {
       calldata: Multicall.encodeMulticall(calldatas),
       value
     }
   }
-
+  
   private static encodeCollect(options: CollectOptions): string[] {
     const calldatas: string[] = []
 
