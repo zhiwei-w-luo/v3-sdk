@@ -1,4 +1,4 @@
-import { ChainId, Percent, Token, CurrencyAmount, WETH9 } from '@uniswap/sdk-core'
+import { Percent, Token, CurrencyAmount, WETH9, Ether } from '@uniswap/sdk-core'
 import { FeeAmount, TICK_SPACINGS } from './constants'
 import { Pool } from './entities/pool'
 import { Position } from './entities/position'
@@ -6,18 +6,30 @@ import { NonfungiblePositionManager } from './nonfungiblePositionManager'
 import { encodeSqrtRatioX96 } from './utils/encodeSqrtRatioX96'
 
 describe('NonfungiblePositionManager', () => {
-  const token0 = new Token(ChainId.MAINNET, '0x0000000000000000000000000000000000000001', 18, 't0', 'token0')
-  const token1 = new Token(ChainId.MAINNET, '0x0000000000000000000000000000000000000002', 18, 't1', 'token1')
+  const token0 = new Token(1, '0x0000000000000000000000000000000000000001', 18, 't0', 'token0')
+  const token1 = new Token(1, '0x0000000000000000000000000000000000000002', 18, 't1', 'token1')
 
   const fee = FeeAmount.MEDIUM
 
   const pool_0_1 = new Pool(token0, token1, fee, encodeSqrtRatioX96(1, 1), 0, 0, [])
-  const pool_1_weth = new Pool(token1, WETH9[ChainId.MAINNET], fee, encodeSqrtRatioX96(1, 1), 0, 0, [])
+  const pool_1_weth = new Pool(token1, WETH9[1], fee, encodeSqrtRatioX96(1, 1), 0, 0, [])
 
   const recipient = '0x0000000000000000000000000000000000000003'
+  const sender = '0x0000000000000000000000000000000000000004'
   const tokenId = 1
   const slippageTolerance = new Percent(1, 100)
   const deadline = 123
+
+  describe('#createCallParameters', () => {
+    it('succeeds', () => {
+      const { calldata, value } = NonfungiblePositionManager.createCallParameters(pool_0_1)
+
+      expect(calldata).toEqual(
+        '0x13ead562000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000bb80000000000000000000000000000000000000001000000000000000000000000'
+      )
+      expect(value).toEqual('0x00')
+    })
+  })
 
   describe('#addCallParameters', () => {
     it('throws if liquidity is 0', () => {
@@ -34,7 +46,7 @@ describe('NonfungiblePositionManager', () => {
       ).toThrow('ZERO_LIQUIDITY')
     })
 
-    it('throws if pool does not involve ether and useEther is true', () => {
+    it('throws if pool does not involve ether and useNative is true', () => {
       expect(() =>
         NonfungiblePositionManager.addCallParameters(
           new Position({
@@ -43,7 +55,7 @@ describe('NonfungiblePositionManager', () => {
             tickUpper: TICK_SPACINGS[FeeAmount.MEDIUM],
             liquidity: 1
           }),
-          { recipient, slippageTolerance, deadline, useEther: true }
+          { recipient, slippageTolerance, deadline, useNative: Ether.onChain(1) }
         )
       ).toThrow('NO_WETH')
     })
@@ -99,7 +111,7 @@ describe('NonfungiblePositionManager', () => {
       expect(value).toEqual('0x00')
     })
 
-    it('useEther', () => {
+    it('useNative', () => {
       const { calldata, value } = NonfungiblePositionManager.addCallParameters(
         new Position({
           pool: pool_1_weth,
@@ -107,7 +119,7 @@ describe('NonfungiblePositionManager', () => {
           tickUpper: TICK_SPACINGS[FeeAmount.MEDIUM],
           liquidity: 1
         }),
-        { recipient, slippageTolerance, deadline, useEther: true }
+        { recipient, slippageTolerance, deadline, useNative: Ether.onChain(1) }
       )
 
       expect(calldata).toEqual(
@@ -136,7 +148,7 @@ describe('NonfungiblePositionManager', () => {
       const { calldata, value } = NonfungiblePositionManager.collectCallParameters({
         tokenId,
         expectedCurrencyOwed0: CurrencyAmount.fromRawAmount(token1, 0),
-        expectedCurrencyOwed1: CurrencyAmount.ether(0),
+        expectedCurrencyOwed1: CurrencyAmount.fromRawAmount(Ether.onChain(1), 0),
         recipient
       })
 
@@ -276,7 +288,7 @@ describe('NonfungiblePositionManager', () => {
     })
 
     it('works with eth', () => {
-      const ethAmount = CurrencyAmount.ether(0)
+      const ethAmount = CurrencyAmount.fromRawAmount(Ether.onChain(1), 0)
       const tokenAmount = CurrencyAmount.fromRawAmount(token1, 0)
 
       const { calldata, value } = NonfungiblePositionManager.removeCallParameters(
@@ -306,7 +318,7 @@ describe('NonfungiblePositionManager', () => {
     })
 
     it('works for partial with eth', () => {
-      const ethAmount = CurrencyAmount.ether(0)
+      const ethAmount = CurrencyAmount.fromRawAmount(Ether.onChain(1), 0)
       const tokenAmount = CurrencyAmount.fromRawAmount(token1, 0)
 
       const { calldata, value } = NonfungiblePositionManager.removeCallParameters(
@@ -331,6 +343,36 @@ describe('NonfungiblePositionManager', () => {
 
       expect(calldata).toEqual(
         '0xac9650d80000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000800000000000000000000000000000000000000000000000000000000000000160000000000000000000000000000000000000000000000000000000000000022000000000000000000000000000000000000000000000000000000000000002a000000000000000000000000000000000000000000000000000000000000000a40c49ccbe0000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000003200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000007b000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000084fc6f78650000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000ffffffffffffffffffffffffffffffff00000000000000000000000000000000ffffffffffffffffffffffffffffffff00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004449404b7c00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000003000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000064df2ab5bb00000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000300000000000000000000000000000000000000000000000000000000'
+      )
+      expect(value).toEqual('0x00')
+    })
+  })
+  describe('#safeTransferFromParameters', () => {
+    it('succeeds no data param', () => {
+      const options = {
+        sender,
+        recipient,
+        tokenId
+      }
+      const { calldata, value } = NonfungiblePositionManager.safeTransferFromParameters(options)
+
+      expect(calldata).toEqual(
+        '0x42842e0e000000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000030000000000000000000000000000000000000000000000000000000000000001'
+      )
+      expect(value).toEqual('0x00')
+    })
+    it('succeeds data param', () => {
+      const data = '0x0000000000000000000000000000000000009004'
+      const options = {
+        sender,
+        recipient,
+        tokenId,
+        data
+      }
+      const { calldata, value } = NonfungiblePositionManager.safeTransferFromParameters(options)
+
+      expect(calldata).toEqual(
+        '0xb88d4fde000000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000030000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000000140000000000000000000000000000000000009004000000000000000000000000'
       )
       expect(value).toEqual('0x00')
     })
