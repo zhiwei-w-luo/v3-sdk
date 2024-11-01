@@ -2000,9 +2000,10 @@
   resolved "https://registry.yarnpkg.com/@uniswap/lib/-/lib-4.0.1-alpha.tgz#2881008e55f075344675b3bca93f020b028fbd02"
   integrity sha512-f6UIliwBbRsgVLxIaBANF6w09tYqc6Y/qXdsrbEmXHyFA7ILiKrIwRFXe1yOg8M3cksgVsO9N7yuL2DdCGQKBA==
 
-"@uniswap/sdk-core@https://github.com/zhiwei-w-luo/v3-sdk-core.git":
-  version "3.0.0-alpha.1"
-  resolved "https://github.com/zhiwei-w-luo/v3-sdk-core.git#f7d2b9b861463f345a6cbaafe25678312ef7e86d"
+"@uniswap/sdk-core@^4.2.0":
+  version "4.2.1"
+  resolved "https://registry.npmmirror.com/@uniswap/sdk-core/-/sdk-core-4.2.1.tgz#7b8c6fee48446bb67a4e6f2e9cb94c862034a6c3"
+  integrity sha512-hr7vwYrXScg+V8/rRc2UL/Ixc/p0P7yqe4D/OxzUdMRYr8RZd+8z5Iu9+WembjZT/DCdbTjde6lsph4Og0n1BQ==
   dependencies:
     "@ethersproject/address" "^5.0.2"
     big.js "^5.2.2"
